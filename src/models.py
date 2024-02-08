@@ -28,8 +28,9 @@ class Comment(db.Model):
 class Item(db.Model):
     __tablename__ = "item"
     item_id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
-    brand_id: Mapped[int] = mapped_column(db.Integer, nullable=False)
-    item_name: Mapped[str] = mapped_column(db.Text, nullable=False)
+    name: Mapped[str] = mapped_column(db.Text, nullable=False)
+    brand_number: Mapped[int] = mapped_column(db.Integer, nullable=False)
+    item_number: Mapped[int] = mapped_column(db.Integer, nullable=False)
     data: Mapped[List["Data"]] = relationship(back_populates="item")
 
 

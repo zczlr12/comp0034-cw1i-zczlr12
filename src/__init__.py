@@ -1,5 +1,8 @@
 import os
-
+import re
+import csv
+from datetime import datetime
+from pathlib import Path
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
@@ -10,6 +13,38 @@ class Base(DeclarativeBase):
 
 
 db = SQLAlchemy(model_class=Base)
+
+
+def add_data_from_csv():
+    """Adds data to the database if it does not already exist."""
+
+    # Add import here and not at the top of the file to avoid circular import issues
+    from src.models import Item, Data
+
+    # If there are no data in the database, then add them
+    first_item = db.session.execute(db.select(Item)).first()
+    if not first_item:
+        print("Start adding data to the database")
+        data_file = Path(__file__).parent.parent.joinpath("data", "dataset_prepared.csv")
+        with open(data_file, 'r') as file:
+            csv_reader = csv.reader(file)
+            header = next(csv_reader)  # Skip header row
+            for col in range(1, len(header), 2):
+                name = header[col].split("_", 1)[-1]
+                brand_number = re.search(r'\d+', name).group()
+                item_number = re.search(r'\d+$', name).group()
+                i = Item(name=name,
+                         brand_number=brand_number,
+                         item_number=item_number)
+                db.session.add(i)
+            for row in csv_reader:
+                for col in range(1, len(row), 2):
+                    d = Data(date=datetime.strptime(row[0], "%Y-%m-%d"),
+                             quantity=row[col],
+                             promotion=int(row[col+1]),
+                             item_id=(col+1)/2)
+                    db.session.add(d)
+            db.session.commit()
 
 
 def create_app(test_config=None):
@@ -38,11 +73,11 @@ def create_app(test_config=None):
     # Initialise Flask with the SQLAlchemy database extension
     db.init_app(app)
 
-    from src.models import Account
-
     with app.app_context():
+        from src.models import Account, Comment, Item, Data
         db.create_all()
-
+        # Add the data to the database if not already added
+        add_data_from_csv()
         # Register the routes with the app in the context
         from src import api_routes
 
