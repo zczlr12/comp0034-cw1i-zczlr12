@@ -41,6 +41,8 @@ def create_app(test_config=None):
     from src.models import Account
 
     with app.app_context():
+        db.create_all()
+
         # Register the routes with the app in the context
         from src import api_routes
 
