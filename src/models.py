@@ -3,17 +3,27 @@ from datetime import datetime
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src import db
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 class Account(db.Model):
     __tablename__ = "account"
     user_id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(db.Text, unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(db.Text, unique=True, nullable=False)
-    first_name: Mapped[str] = mapped_column(db.Text, nullable=False)
-    last_name: Mapped[str] = mapped_column(db.Text, nullable=False)
-    email: Mapped[str] = mapped_column(db.Text, unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(db.String, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(db.String, unique=True, nullable=False)
+    first_name: Mapped[str] = mapped_column(db.String, nullable=False)
+    last_name: Mapped[str] = mapped_column(db.String, nullable=False)
+    email: Mapped[str] = mapped_column(db.String, unique=True, nullable=False)
     comments: Mapped[List["Comment"]] = relationship(back_populates="account")
+
+    def __repr__(self):
+        return '<User {}>'.format(self.username)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 class Comment(db.Model):
