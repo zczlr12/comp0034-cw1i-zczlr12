@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_marshmallow import Marshmallow
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -13,6 +14,7 @@ class Base(DeclarativeBase):
 
 
 db = SQLAlchemy(model_class=Base)
+ma = Marshmallow()
 
 
 def add_data_from_csv():
@@ -54,7 +56,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='blo5jfo8jYiEuau4ddOqvA',
         # Set the location of the database file called paralympics.sqlite which will be in the app's instance folder
-        SQLALCHEMY_DATABASE_URI="sqlite:///" + os.path.join(app.instance_path, 'paralympics.sqlite')
+        SQLALCHEMY_DATABASE_URI="sqlite:///" + os.path.join(app.instance_path, 'database.sqlite')
     )
 
     if test_config is None:
@@ -72,9 +74,9 @@ def create_app(test_config=None):
 
     # Initialise Flask with the SQLAlchemy database extension
     db.init_app(app)
+    ma.init_app(app)
 
     with app.app_context():
-        from src.models import Account, Comment, Item, Data
         db.create_all()
         # Add the data to the database if not already added
         add_data_from_csv()
@@ -82,3 +84,5 @@ def create_app(test_config=None):
         from src import api_routes
 
     return app
+
+from src.models import Account, Comment, Item, Data
