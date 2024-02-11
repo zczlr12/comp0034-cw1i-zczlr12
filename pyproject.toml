@@ -7,8 +7,12 @@ dependencies = [
     "Flask-SQLAlchemy",
     "Flask-Marshmallow",
     "marshmallow-sqlalchemy",
+    "bcrypt",
     "pandas",
     "pytest",
+    "pytest-cov",
+    "pyjwt",
+    "faker"
     "pyarrow"
 ]
 

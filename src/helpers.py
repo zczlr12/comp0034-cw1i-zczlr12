@@ -1,7 +1,7 @@
-import jwt
-from datetime import datetime, timedelta
-from flask import request, make_response, current_app as app
 from functools import wraps
+from datetime import datetime, timedelta
+import jwt
+from flask import request, make_response, current_app as app
 from src import db
 from src.models import Account
 

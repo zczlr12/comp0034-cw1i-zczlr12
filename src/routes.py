@@ -38,6 +38,89 @@ def register_validation_error(error):
     return response, 400
 
 
+# AUTHENTICATION ROUTES
+@app.post("/register")
+def register():
+    """Register a new user for the REST API
+
+    If successful, return 201 Created.
+    If username or email already exists, return 409 Conflict.
+    If any other error occurs, return 500 Server error
+    """
+    # Get the JSON data from the request
+    user_json = request.get_json()
+    # Check if user already exists, returns None if the user does not exist
+    existing_username = db.session.execute(
+        db.select(Account).filter_by(username=user_json.get("username"))
+    ).scalar_one_or_none()
+    existing_email = db.session.execute(
+        db.select(Account).filter_by(email=user_json.get("email"))
+    ).scalar_one_or_none()
+    if not existing_username and not existing_email:
+        try:
+            # Create new User object
+            user = Account(username=user_json.get("username"),
+                           first_name=user_json.get("first_name"),
+                           last_name=user_json.get("last_name"),
+                           email=user_json.get("email"))
+            # Set the hashed password
+            user.set_password(password=user_json.get("password"))
+            # Add user to the database
+            db.session.add(user)
+            db.session.commit()
+            # Return success message
+            response = {
+                "message": "Successfully registered.",
+            }
+            # Log the registered user
+            current_time = datetime.datetime.now(datetime.UTC)
+            app.logger.info(f"{user.email} registered at {current_time}")
+            return make_response(jsonify(response)), 201
+        except SQLAlchemyError as e:
+            app.logger.error(f"A SQLAlchemy database error occurred: {str(e)}")
+            response = {
+                "message": "An error occurred. Please try again.",
+            }
+            return make_response(jsonify(response)), 500
+    else:
+        response = {
+            "message": "Username or email has already been used."
+        }
+        return make_response(jsonify(response)), 409
+
+
+@app.post('/login')
+def login():
+    """Logins in the User and generates a token
+
+    If the email and password are not present in the HTTP request, return 401 error
+    If the user is not found in the database, or the password is incorrect, return 401 error
+    If the user is logged in and the token is generated, return the token and 201 Success
+    """
+    auth = request.get_json()
+
+    # Check the username and password are present, if not return a 401 error
+    if not auth or not auth.get('username') or not auth.get('password'):
+        msg = {'message': 'Missing username or password'}
+        return make_response(msg, 401)
+
+    # Find the user in the database
+    user = db.session.execute(
+        db.select(Account).filter_by(username=auth.get("username"))
+    ).scalar_one_or_none()
+
+    # If the user is not found, or the password is incorrect, return 401 error
+    if not user or not user.check_password(auth.get('password')):
+        msg = {'message': 'Incorrect username or password.'}
+        return make_response(msg, 401)
+
+    # If all OK then create the token
+    token = encode_auth_token(user.user_id)
+
+    # Return the token and the user_id of the logged in user
+    return make_response(jsonify({"user_id": user.user_id, "token": token}), 201)
+
+
 @app.get("/items")
 def get_items():
     """Returns a list of items and their details in JSON.
@@ -129,83 +212,3 @@ def data_update(item_id):
     response = make_response(result, 200)
     response.headers["Content-Type"] = "application/json"
     return response
-
-
-# AUTHENTICATION ROUTES
-@app.post("/register")
-def register():
-    """Register a new user for the REST API
-
-    If successful, return 201 Created.
-    If email already exists, return 409 Conflict (resource already exists).
-    If any other error occurs, return 500 Server error
-    """
-    # Get the JSON data from the request
-    user_json = request.get_json()
-    # Check if user already exists, returns None if the user does not exist
-    user = db.session.execute(
-        db.select(Account).filter_by(email=user_json.get("username"))
-    ).scalar_one_or_none()
-    if not user:
-        try:
-            # Create new User object
-            user = Account(username=user_json.get("username"),
-                           first_name=user_json.get("first_name"),
-                           last_name=user_json.get("last_name"),
-                           email=user_json.get("email"))
-            # Set the hashed password
-            user.set_password(password=user_json.get("password"))
-            # Add user to the database
-            db.session.add(user)
-            db.session.commit()
-            # Return success message
-            response = {
-                "message": "Successfully registered.",
-            }
-            # Log the registered user
-            current_time = datetime.datetime.now(datetime.UTC)
-            app.logger.info(f"{user.email} registered at {current_time}")
-            return make_response(jsonify(response)), 201
-        except SQLAlchemyError as e:
-            app.logger.error(f"A SQLAlchemy database error occurred: {str(e)}")
-            response = {
-                "message": "An error occurred. Please try again.",
-            }
-            return make_response(jsonify(response)), 500
-    else:
-        response = {
-            "message": "User already exists. Please Log in.",
-        }
-        return make_response(jsonify(response)), 409
-
-
-@app.post('/login')
-def login():
-    """Logins in the User and generates a token
-
-    If the email and password are not present in the HTTP request, return 401 error
-    If the user is not found in the database, or the password is incorrect, return 401 error
-    If the user is logged in and the token is generated, return the token and 201 Success
-    """
-    auth = request.get_json()
-
-    # Check the email and password are present, if not return a 401 error
-    if not auth or not auth.get('username') or not auth.get('password'):
-        msg = {'message': 'Missing username or password'}
-        return make_response(msg, 401)
-
-    # Find the user in the database
-    user = db.session.execute(
-        db.select(Account).filter_by(email=auth.get("username"))
-    ).scalar_one_or_none()
-
-    # If the user is not found, or the password is incorrect, return 401 error
-    if not user or not user.check_password(auth.get('password')):
-        msg = {'message': 'Incorrect email or password.'}
-        return make_response(msg, 401)
-
-    # If all OK then create the token
-    token = encode_auth_token(user.id)
-
-    # Return the token and the user_id of the logged in user
-    return make_response(jsonify({"user_id": user.id, "token": token}), 201)

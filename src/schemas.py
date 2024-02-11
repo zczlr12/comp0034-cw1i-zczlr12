@@ -47,7 +47,7 @@ class ItemSchema(ma.SQLAlchemySchema):
     item_number = ma.auto_field()
 
 
-class DataSchema(ma.SQLAlchemyAutoSchema):
+class DataSchema(ma.SQLAlchemySchema):
     """Marshmallow schema for the attributes of a data class. Inherits all the attributes from the Data class."""
 
     class Meta:
@@ -56,6 +56,10 @@ class DataSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         sqla_session = db.session
         include_relationships = True
+    
+    date = ma.auto_field()
+    quantity = ma.auto_field()
+    promotion = ma.auto_field()
 
 
 class DetailSchema(ma.SQLAlchemyAutoSchema):

@@ -81,7 +81,7 @@ def create_app(test_config=None):
         # Add the data to the database if not already added
         add_data_from_csv()
         # Register the routes with the app in the context
-        from src import api_routes
+        from src import routes
 
     return app
 
