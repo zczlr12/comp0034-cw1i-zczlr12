@@ -2,8 +2,8 @@ from typing import List
 from datetime import datetime
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src import db
 from werkzeug.security import generate_password_hash, check_password_hash
+from src import db
 
 
 class Account(db.Model):
