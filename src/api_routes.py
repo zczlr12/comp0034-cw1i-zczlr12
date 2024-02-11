@@ -1,5 +1,6 @@
-from flask import current_app as app, request, make_response
-
+from flask import current_app as app, request, make_response, abort, jsonify
+from sqlalchemy.exc import SQLAlchemyError
+from marshmallow.exceptions import ValidationError
 from src import db
 from src.models import Item, Data
 from src.schemas import ItemSchema, DetailSchema
@@ -8,6 +9,31 @@ from src.schemas import ItemSchema, DetailSchema
 items_schema = ItemSchema(many=True)
 item_schema = ItemSchema()
 detail_schema = DetailSchema()
+
+
+@app.errorhandler(404)
+def resource_not_found(e):
+    """ Error handler for 404.
+
+        Args:
+            HTTP 404 error
+        Returns:
+            JSON response with the validation error message and the 404 status code
+        """
+    return jsonify(error=str(e)), 404
+
+
+@app.errorhandler(ValidationError)
+def register_validation_error(error):
+    """ Error handler for marshmallow schema validation errors.
+
+    Args:
+        error (ValidationError): Marshmallow error.
+    Returns:
+        HTTP response with the validation error message and the 400 status code
+    """
+    response = error.messages
+    return response, 400
 
 
 @app.get("/items")
@@ -29,10 +55,14 @@ def get_data(item_id):
     :param type item_id: int
     :returns: JSON
     """
-    data = db.session.execute(
-        db.select(Item).filter_by(item_id=item_id)
-    ).scalar_one_or_none()
-    return detail_schema.dump(data)
+    try:
+        data = db.session.execute(
+            db.select(Item).filter_by(item_id=item_id)
+        ).scalar_one_or_none()
+        return detail_schema.dump(data)
+    except SQLAlchemyError as e:
+        # See https://flask.palletsprojects.com/en/2.3.x/errorhandling/#returning-api-errors-as-json
+        abort(404, description="Region not found.")
 
 
 @app.post('/items')
