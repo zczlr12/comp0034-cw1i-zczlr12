@@ -1,8 +1,10 @@
 # COMP0034 Coursework 1 2023/24
 
-## Application code
-
 ## Testing
+
+From the screenshot below, all 18 tests have been passed in VS code.
+
+![Screenshot](screenshot.png)
 
 ## Tools and techniques
 

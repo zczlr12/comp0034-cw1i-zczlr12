@@ -21,7 +21,6 @@ ma = Marshmallow()
 def add_data_from_csv():
     """Adds data to the database if it does not already exist."""
 
-    # Add import here and not at the top of the file to avoid circular import issues
     from src.models import Item, Data
 
     # If there are no data in the database, then add them
@@ -51,6 +50,9 @@ def add_data_from_csv():
 
 
 def create_app(test_config=None):
+    # Adapted from 'Basic Configuration' at
+    # https://flask.palletsprojects.com/en/3.0.x/logging/#logging
+    # Accessed 05/02/2023
     dictConfig({
         'version': 1,
         'formatters': {'default': {

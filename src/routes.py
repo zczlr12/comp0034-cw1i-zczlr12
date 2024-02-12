@@ -37,7 +37,7 @@ def handle_non_http_exception(e):
 
 
 @app.errorhandler(HTTPException)
-def handle_http_xception(e):
+def handle_http_exception(e):
     """Return JSON instead of HTML for HTTP errors."""
     # start with the correct headers and status code from the error
     response = e.get_response()
@@ -51,6 +51,9 @@ def handle_http_xception(e):
     return response
 
 
+# Adapted from 'Returning API Errors as JSON' at
+# See https://flask.palletsprojects.com/en/2.3.x/errorhandling/#returning-api-errors-as-json
+# Accessed 05/02/2023
 @app.errorhandler(404)
 def resource_not_found(e):
     """ Error handler for 404.
@@ -58,7 +61,7 @@ def resource_not_found(e):
         Args:
             HTTP 404 error
         Returns:
-            JSON response with the validation error message and the 404 status code
+            JSON response with the validation error message and 404
         """
     return jsonify(error=str(e)), 404
 
@@ -70,7 +73,7 @@ def register_validation_error(error):
     Args:
         error (ValidationError): Marshmallow error.
     Returns:
-        HTTP response with the validation error message and the 400 status code
+        HTTP response with the validation error message and 400
     """
     response = error.messages
     return response, 400
