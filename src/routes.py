@@ -1,16 +1,53 @@
 import datetime
-from flask import current_app as app, request, make_response, abort, jsonify
+from flask import json, current_app as app, request, make_response, abort, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
 from marshmallow.exceptions import ValidationError
+from werkzeug.exceptions import HTTPException
 from src import db
-from src.models import Item, Data, Account
-from src.schemas import ItemSchema, DetailSchema
+from src.models import Item, Data, Account, Comment
+from src.schemas import ItemSchema, DetailSchema, CommentSchema
 from src.helpers import token_required, encode_auth_token
 
 # Flask-Marshmallow Schemas
+comments_schema = CommentSchema(many=True)
 items_schema = ItemSchema(many=True)
 item_schema = ItemSchema()
 detail_schema = DetailSchema()
+
+
+@app.errorhandler(Exception)
+def handle_non_http_exception(e):
+    """Handle non-HTTP exceptions as 500 Server error in JSON format."""
+
+    # pass through HTTP errors
+    if isinstance(e, HTTPException):
+        return e
+
+    # now you're handling non-HTTP exceptions only
+    response = e.get_response()
+    # replace the body with JSON
+    response.data = json.dumps({
+        "code": 500,
+        "name": e.name,
+        "description": e.description,
+    })
+    response.content_type = "application/json"
+    return response
+
+
+@app.errorhandler(HTTPException)
+def handle_http_xception(e):
+    """Return JSON instead of HTML for HTTP errors."""
+    # start with the correct headers and status code from the error
+    response = e.get_response()
+    # replace the body with JSON
+    response.data = json.dumps({
+        "code": e.code,
+        "name": e.name,
+        "description": e.description,
+    })
+    response.content_type = "application/json"
+    return response
 
 
 @app.errorhandler(404)
@@ -74,7 +111,7 @@ def register():
             }
             # Log the registered user
             current_time = datetime.datetime.now(datetime.UTC)
-            app.logger.info(f"{user.email} registered at {current_time}")
+            app.logger.info(f"{user.username} registered at {current_time}")
             return make_response(jsonify(response)), 201
         except SQLAlchemyError as e:
             app.logger.error(f"A SQLAlchemy database error occurred: {str(e)}")
@@ -113,14 +150,47 @@ def login():
     if not user or not user.check_password(auth.get('password')):
         msg = {'message': 'Incorrect username or password.'}
         return make_response(msg, 401)
+    
+    app.logger.info(f"{user.username} logged in at {datetime.datetime.now(datetime.UTC)}")
 
     # If all OK then create the token
     token = encode_auth_token(user.user_id)
+
+    session['user_id'] = user.user_id
 
     # Return the token and the user_id of the logged in user
     return make_response(jsonify({"user_id": user.user_id, "token": token}), 201)
 
 
+# COMMENT ROUTES
+@app.get("/comments")
+def get_comments():
+    """Returns a list of comments in JSON.
+
+    :returns: JSON
+    """
+    # Select all the comments using Flask-SQLAlchemy
+    all_comments = db.session.execute(db.select(Comment)).scalars()
+    return comments_schema.dump(all_comments)
+
+
+@app.post('/comments')
+@token_required
+def post_comment():
+    """ Adds a new comment.
+    
+    Gets the JSON data from the request body and uses this to deserialise JSON to an object using Marshmallow 
+    comment_schema.load()
+
+    :returns: JSON"""
+    comment_json = request.get_json()
+    comment = CommentSchema.load(comment_json)
+    db.session.add(comment)
+    db.session.commit()
+    return {"message": f"Comment added with id= {comment.comment_id}"}
+
+
+# ITEM ROUTES
 @app.get("/items")
 def get_items():
     """Returns a list of items and their details in JSON.
@@ -143,11 +213,11 @@ def get_data(item_id):
     try:
         data = db.session.execute(
             db.select(Item).filter_by(item_id=item_id)
-        ).scalar_one_or_none()
+        ).scalar_one()
         return detail_schema.dump(data)
     except SQLAlchemyError as e:
-        # See https://flask.palletsprojects.com/en/2.3.x/errorhandling/#returning-api-errors-as-json
-        abort(404, description="Region not found.")
+        app.logger.error(f"A SQLAlchemy database error occurred: {str(e)}")
+        abort(404, description="Item not found.")
 
 
 @app.post('/items')
@@ -174,17 +244,21 @@ def delete_item(item_id):
     Gets data of the item from the database and deletes it.
 
     :returns: JSON"""
-    data = db.session.execute(
-        db.select(Data).filter_by(item_id=item_id)
-    ).scalars()
-    item = db.session.execute(
-        db.select(Item).filter_by(item_id=item_id)
-    ).scalar_one_or_none()
-    for datum in data:
-        db.session.delete(datum)
-    db.session.delete(item)
-    db.session.commit()
-    return {"message": f"item deleted with id= {item_id}"}
+    try:
+        data = db.session.execute(
+            db.select(Data).filter_by(item_id=item_id)
+        ).scalars()
+        item = db.session.execute(
+            db.select(Item).filter_by(item_id=item_id)
+        ).scalar_one_or_none()
+        for datum in data:
+            db.session.delete(datum)
+        db.session.delete(item)
+        db.session.commit()
+        return {"message": f"{item.name} has been deleted"}
+    except SQLAlchemyError as e:
+        app.logger.error(f"The item with id {item_id} does not exist. Error: {str(e)}")
+        return abort(404, description="Item not found.")
 
 
 @app.patch("/items/<int:item_id>")

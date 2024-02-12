@@ -3,6 +3,7 @@ import re
 import csv
 from datetime import datetime
 from pathlib import Path
+from logging.config import dictConfig
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
@@ -50,14 +51,35 @@ def add_data_from_csv():
 
 
 def create_app(test_config=None):
+    dictConfig({
+        'version': 1,
+        'formatters': {'default': {
+            'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+        }},
+        'handlers':
+            {'wsgi': {
+                'class': 'logging.StreamHandler',
+                'stream': 'ext://flask.logging.wsgi_errors_stream',
+                'formatter': 'default'
+            },
+                "file": {
+                    "class": "logging.FileHandler",
+                    "filename": "app_log.log",
+                    "formatter": "default",
+                },
+            },
+        "root": {"level": "DEBUG", "handlers": ["wsgi", "file"]},
+    })
     # create the Flask app
     app = Flask(__name__, instance_relative_config=True)
-    # configure the Flask app (see later notes on how to generate your own SECRET_KEY)
+    # configure the Flask app
     app.config.from_mapping(
         SECRET_KEY='blo5jfo8jYiEuau4ddOqvA',
-        # Set the location of the database file called paralympics.sqlite which will be in the app's instance folder
+        # Set the location of the database file
         SQLALCHEMY_DATABASE_URI="sqlite:///" + os.path.join(app.instance_path, 'database.sqlite')
     )
+
+    app.logger.info("The app is starting...")
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -76,6 +98,7 @@ def create_app(test_config=None):
     db.init_app(app)
     ma.init_app(app)
 
+    from src.models import Account, Comment, Item, Data
     with app.app_context():
         db.create_all()
         # Add the data to the database if not already added
@@ -84,5 +107,3 @@ def create_app(test_config=None):
         from src import routes
 
     return app
-
-from src.models import Account, Comment, Item, Data

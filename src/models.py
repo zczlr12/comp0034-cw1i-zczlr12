@@ -29,7 +29,7 @@ class Account(db.Model):
 class Comment(db.Model):
     __tablename__ = "comment"
     comment_id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
-    date: Mapped[str] = mapped_column(db.Text, nullable=False)
+    date: Mapped[datetime] = mapped_column(db.DateTime, nullable=False)
     content: Mapped[str] = mapped_column(db.Text, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("account.user_id"))
     account: Mapped["Account"] = relationship("Account", back_populates="comments")
