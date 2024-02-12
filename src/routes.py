@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import json, current_app as app, request, make_response, abort, jsonify, session
+from flask import json, current_app as app, request, make_response, abort, jsonify
 from sqlalchemy.exc import SQLAlchemyError
 from marshmallow.exceptions import ValidationError
 from werkzeug.exceptions import HTTPException
@@ -157,8 +157,6 @@ def login():
     # If all OK then create the token
     token = encode_auth_token(user.user_id)
 
-    session['user_id'] = user.user_id
-
     # Return the token and the user_id of the logged in user
     return make_response(jsonify({"user_id": user.user_id, "token": token}), 201)
 
@@ -300,7 +298,7 @@ def delete_item(item_id):
             db.session.delete(datum)
         db.session.delete(item)
         db.session.commit()
-        return {"message": f"{item.name} has been deleted"}
+        return {"message": f"The item with id {item_id} has been deleted"}
     except SQLAlchemyError as e:
         app.logger.error(f"The item with id {item_id} does not exist. Error: {str(e)}")
         return abort(404, description="Item not found.")
@@ -312,7 +310,7 @@ def data_update(item_id):
     """Updates changed fields for the item.
 
     """
-    app.logger.error(f"Started the patch")
+    app.logger.error("Started the patch")
     try:
         # Find the item in the database
         existing_item = db.session.execute(
@@ -329,7 +327,7 @@ def data_update(item_id):
         data_updated = detail_schema.load(item_json, instance=existing_item, partial=True)
     except ValidationError as e:
         app.logger.error(f"A Marshmallow schema validation error occurred: {str(e)}")
-        msg = f'Failed Marshmallow schema validation'
+        msg = "Failed Marshmallow schema validation"
         return make_response(msg, 500)
     # Commit the changes to the database
     try:
@@ -338,5 +336,5 @@ def data_update(item_id):
         return {"message": f"Item with id {item_id} updated."}
     except SQLAlchemyError as e:
         app.logger.error(f"A SQLAlchemy database error occurred: {str(e)}")
-        msg = f'An Internal Server Error occurred.'
+        msg = "An Internal Server Error occurred."
         return make_response(msg, 500)

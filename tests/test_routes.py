@@ -36,14 +36,14 @@ def test_login_success(client, new_user):
 
 def test_login_fail(client):
     """
-    GIVEN a valid format username and password for a user not already registered
+    GIVEN a valid format username and password for a user not registered
     WHEN /login is called
     THEN the status code should be 401
     """
-    user_json = {"username": "test", "password": "abcdefgh"}
-    user_register = client.post('/login', json=user_json,
-                                content_type="application/json")
-    assert user_register.status_code == 401
+    user_json = {"username": "test", "password": "abcdefg"}
+    user_login = client.post('/login', json=user_json,
+                             content_type="application/json")
+    assert user_login.status_code == 401
 
 
 # COMMENT ROUTES
@@ -67,14 +67,27 @@ def test_get_comments_json(client):
     response = client.get("/comments")
     assert response.headers["Content-Type"] == "application/json"
     assert response.json == []
+
+
+def test_user_not_logged_in_cannot_post_comment(client, comment_json):
+    """
+    GIVEN a user that is not logged in
+    AND a route that is protected by login
+    WHEN a POST request to /comments is made
+    THEN the HTTP response status code should be 401 with the following message
+    'Authentication Token missing'
+    """
+    response = client.post("/comments", json=comment_json)
+    assert response.status_code == 401
+    assert response.json['message'] == 'Authentication Token missing'
     
 
-def test_post_comment(client, login, comment_json):
+def test_user_logged_in_post_comment(client, login, comment_json):
     """
     GIVEN a registered user that is successfully logged in
     AND a route that is protected by login
-    AND a new Comment that can be posted
     WHEN a POST request to /comments is made
+    THEN a new comment can be posted
     THEN the HTTP status code should be 200
     """
     # pass the token in the headers of the HTTP request
@@ -132,11 +145,11 @@ def test_get_item_not_exists(client):
     WHEN a request is made for a item id that does not exist
     THEN the response status_code should be 404 Not Found
     """
-    response = client.get("/regions/200")
+    response = client.get("/items/200")
     assert response.status_code == 404
 
 
-def test_post_item(client):
+def test_post_item(client, login):
     """
     GIVEN a Flask test client
     AND valid JSON for a new item
@@ -145,11 +158,110 @@ def test_post_item(client):
     """
     # JSON to create a new item
     item_json = {"brand_number": 5, "item_number": 1, "name": "B5_1"}
+    # pass the token in the headers of the HTTP request
+    headers = {
+        'content-type': "application/json",
+        'Authorization': login['token']
+    }
     # pass the JSON in the HTTP POST request
     response = client.post(
         "/items",
         json=item_json,
-        content_type="application/json",
+        headers=headers
     )
-    # 201 is the HTTP status code for a successful POST or PUT request
-    assert response.status_code == 201
+    assert response.status_code == 200
+
+
+def test_item_post_error(client, login):
+    """
+        GIVEN a Flask test client
+        AND JSON for a new item that is missing a required field ("name")
+        WHEN a POST request is made to /items
+        THEN the response status_code should be 400
+        """
+    # JSON to create a new item
+    missing_item_json = {"brand_number": 5, "item_number": 1}
+    # pass the token in the headers of the HTTP request
+    headers = {
+        'content-type': "application/json",
+        'Authorization': login['token']
+    }
+    # pass the JSON in the HTTP POST request
+    response = client.post(
+        "/items",
+        json=missing_item_json,
+        headers=headers
+    )
+    assert response.status_code == 400
+
+
+def test_delete_item(client, login):
+    """
+    GIVEN an existing item in JSON format
+    AND a Flask test client
+    WHEN a DELETE request is made to /items/8
+    THEN the response status code should be 200
+    AND the response content should include following message
+    'The item with id 8 has been deleted.'
+    """
+    headers = {
+        'content-type': "application/json",
+        'Authorization': login['token']
+    }
+    response = client.delete("/items/8", headers=headers)
+    assert response.status_code == 200
+    assert response.json['message'] == 'The item with id 8 has been deleted'
+
+
+def test_delete_item_not_exists(client, login):
+    """
+    GIVEN a Flask test client
+    WHEN a DELETE request is made to an item that does not exist /items/200
+    THEN the response status code should be 404
+    AND the response content should include the following error message
+    '404 Not Found: Item not found.'
+    """
+    headers = {
+        'content-type': "application/json",
+        'Authorization': login['token']
+    }
+    response = client.delete("/items/200", headers=headers)
+    assert response.status_code == 404
+    assert response.json['error'] == '404 Not Found: Item not found.'
+
+
+def test_user_not_logged_in_cannot_edit_item(client):
+    """
+    GIVEN a user that is not logged in
+    AND a route that is protected by login
+    AND an item that can be edited
+    WHEN a PATCH request to /items/8 is made
+    THEN the HTTP response status code should be 401 with the following message
+    'Authentication Token missing'
+    """
+    new_name = {'name': 'pizza'}
+    response = client.patch("/items/8", json=new_name)
+    assert response.status_code == 401
+    assert response.json['message'] == 'Authentication Token missing'
+
+
+def test_user_logged_in_user_can_edit_item(client, login):
+    """
+    GIVEN a user that is successfully logged in
+    AND a route that is protected by login
+    AND an item that can be edited
+    WHEN a PATCH request to /items/8 is made
+    THEN the HTTP status code should be 200
+    AND the response content should include the following message
+    'Item with id 8 updated.'
+    """
+    # pass the token in the headers of the HTTP request
+    token = login['token']
+    headers = {
+        'content-type': "application/json",
+        'Authorization': token
+    }
+    new_name = {'name': 'pizza'}
+    response = client.patch("/items/8", json=new_name, headers=headers)
+    assert response.status_code == 200
+    assert response.json == {"message": "Item with id 8 updated."}

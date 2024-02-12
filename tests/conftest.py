@@ -98,7 +98,7 @@ def new_user(app):
 
 
 @pytest.fixture()
-def login(client, new_user, app):
+def login(client, new_user):
     """Returns login response"""
     # Login
     # If login fails then the fixture fails. It may be possible to 'mock' this instead if you want to investigate it.
