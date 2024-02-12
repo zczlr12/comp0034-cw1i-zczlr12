@@ -10,6 +10,19 @@ def test_register_success(client, random_user_json):
     assert user_register.status_code == 201
 
 
+def test_register_fail(client, random_user_json):
+    """
+    GIVEN a valid format account attributes for a user not already registered
+    WHEN an account is created
+    THEN the status code should be 409
+    """
+    client.post('/register', json=random_user_json,
+                content_type="application/json")
+    user_register = client.post('/register', json=random_user_json,
+                                content_type="application/json")
+    assert user_register.status_code == 409
+
+
 def test_login_success(client, new_user):
     """
     GIVEN a valid format username and password for a user already registered
@@ -21,6 +34,18 @@ def test_login_success(client, new_user):
     assert user_register.status_code == 201
 
 
+def test_login_fail(client):
+    """
+    GIVEN a valid format username and password for a user not already registered
+    WHEN /login is called
+    THEN the status code should be 401
+    """
+    user_json = {"username": "test", "password": "abcdefgh"}
+    user_register = client.post('/login', json=user_json,
+                                content_type="application/json")
+    assert user_register.status_code == 401
+
+
 # COMMENT ROUTES
 def test_get_comments_status_code(client):
     """
@@ -30,6 +55,18 @@ def test_get_comments_status_code(client):
     """
     response = client.get("/comments")
     assert response.status_code == 200
+
+
+def test_get_comments_json(client):
+    """
+    GIVEN a Flask test client
+    AND the database contains no comments
+    WHEN a request is made to /comments
+    THEN the response should be an empty list
+    """
+    response = client.get("/comments")
+    assert response.headers["Content-Type"] == "application/json"
+    assert response.json == []
     
 
 def test_post_comment(client, login, comment_json):

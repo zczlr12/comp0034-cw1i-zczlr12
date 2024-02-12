@@ -2,7 +2,7 @@ import os
 import string
 import secrets
 from pathlib import Path
-import datetime
+from datetime import datetime
 import pytest
 from faker import Faker
 from sqlalchemy import exists
@@ -111,6 +111,6 @@ def login(client, new_user, app):
 def comment_json(login, app):
     """Returns comment data"""
     with app.app_context():
-        yield {'date': datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S"),
+        yield {'date': datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
                'content': Faker().paragraph(),
                'user_id': decode_auth_token(login['token'])["sub"]}

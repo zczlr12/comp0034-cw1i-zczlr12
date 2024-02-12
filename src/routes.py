@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from flask import json, current_app as app, request, make_response, abort, jsonify, session
 from sqlalchemy.exc import SQLAlchemyError
 from marshmallow.exceptions import ValidationError
@@ -111,7 +111,7 @@ def register():
                 "message": "Successfully registered.",
             }
             # Log the registered user
-            current_time = datetime.datetime.now(datetime.UTC)
+            current_time = datetime.now()
             app.logger.info(f"{user.username} registered at {current_time}")
             return make_response(jsonify(response)), 201
         except SQLAlchemyError as e:
@@ -152,7 +152,7 @@ def login():
         msg = {'message': 'Incorrect username or password.'}
         return make_response(msg, 401)
     
-    app.logger.info(f"{user.username} logged in at {datetime.datetime.now(datetime.UTC)}")
+    app.logger.info(f"{user.username} logged in at {datetime.now()}")
 
     # If all OK then create the token
     token = encode_auth_token(user.user_id)
