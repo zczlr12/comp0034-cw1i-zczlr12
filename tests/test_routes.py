@@ -250,7 +250,7 @@ def test_user_logged_in_user_can_edit_item(client, login):
     GIVEN a user that is successfully logged in
     AND a route that is protected by login
     AND an item that can be edited
-    WHEN a PATCH request to /items/8 is made
+    WHEN a PATCH request to /items/3 is made
     THEN the HTTP status code should be 200
     AND the response content should include the following message
     'Item with id 8 updated.'
@@ -262,6 +262,6 @@ def test_user_logged_in_user_can_edit_item(client, login):
         'Authorization': token
     }
     new_name = {'name': 'pizza'}
-    response = client.patch("/items/8", json=new_name, headers=headers)
+    response = client.patch("/items/3", json=new_name, headers=headers)
     assert response.status_code == 200
-    assert response.json == {"message": "Item with id 8 updated."}
+    assert response.json == {"message": "Item with id 3 updated."}
