@@ -64,3 +64,20 @@ def test_post_item(client):
     )
     # 201 is the HTTP status code for a successful POST or PUT request
     assert response.status_code == 201
+
+
+def test_comment(client, login, comment_json):
+    """
+    GIVEN a registered user that is successfully logged in
+    AND a route that is protected by login
+    AND a new Comment that can be posted
+    WHEN a POST request to /comments is made
+    THEN the HTTP status code should be 200
+    """
+    # pass the token in the headers of the HTTP request
+    headers = {
+        'content-type': "application/json",
+        'Authorization': login['token']
+    }
+    response = client.post("/comments", json=comment_json, headers=headers)
+    assert response.status_code == 200

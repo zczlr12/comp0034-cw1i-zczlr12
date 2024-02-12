@@ -1,10 +1,12 @@
 import os
 from pathlib import Path
+import datetime
 import pytest
 from faker import Faker
 from sqlalchemy import exists
 from src import create_app, db
 from src.models import Account
+from src.helpers import decode_auth_token
 
 
 @pytest.fixture(scope='module')
@@ -81,12 +83,19 @@ def new_user(app):
             db.session.commit()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def login(client, new_user):
     """Returns login response"""
     # Login
     # If login fails then the fixture fails. It may be possible to 'mock' this instead if you want to investigate it.
     response = client.post('/login', json=new_user, content_type="application/json")
     # Get returned json data from the login function
-    data = response.json
-    yield data
+    yield response.json
+
+
+@pytest.fixture()
+def comment_json(login):
+    """Returns comment data"""
+    yield {'date': datetime.datetime.now(datetime.UTC),
+           'content': Faker().paragraph(),
+           'user_id': decode_auth_token(login['token'])}
