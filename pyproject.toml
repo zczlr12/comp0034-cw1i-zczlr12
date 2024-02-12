@@ -12,7 +12,7 @@ dependencies = [
     "pytest",
     "pytest-cov",
     "pyjwt",
-    "faker"
+    "faker",
     "pyarrow"
 ]
 

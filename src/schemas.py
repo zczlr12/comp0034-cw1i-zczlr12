@@ -2,7 +2,7 @@ from src.models import Comment, Item, Data
 from src import db, ma
 
 
-class CommentSchema(ma.SQLAlchemyAutoSchema):
+class CommentSchema(ma.SQLAlchemySchema):
     """Marshmallow schema defining the attributes for creating a new comment."""
 
     class Meta:
@@ -10,6 +10,11 @@ class CommentSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         sqla_session = db.session
         include_relationships = True
+    
+    comment_id = ma.auto_field()
+    date = ma.auto_field()
+    content = ma.auto_field()
+    user_id = ma.auto_field()
 
 
 class ItemSchema(ma.SQLAlchemySchema):

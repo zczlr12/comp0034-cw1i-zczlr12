@@ -1,3 +1,55 @@
+# AUTHENTICATION ROUTES
+def test_register_success(client, random_user_json):
+    """
+    GIVEN a valid format account attributes for a user not already registered
+    WHEN an account is created
+    THEN the status code should be 201
+    """
+    user_register = client.post('/register', json=random_user_json,
+                                content_type="application/json")
+    assert user_register.status_code == 201
+
+
+def test_login_success(client, new_user):
+    """
+    GIVEN a valid format username and password for a user already registered
+    WHEN /login is called
+    THEN the status code should be 201
+    """
+    user_register = client.post('/login', json=new_user,
+                                content_type="application/json")
+    assert user_register.status_code == 201
+
+
+# COMMENT ROUTES
+def test_get_comments_status_code(client):
+    """
+    GIVEN a Flask test client
+    WHEN a request is made to /comments
+    THEN the status code should be 200
+    """
+    response = client.get("/comments")
+    assert response.status_code == 200
+    
+
+def test_post_comment(client, login, comment_json):
+    """
+    GIVEN a registered user that is successfully logged in
+    AND a route that is protected by login
+    AND a new Comment that can be posted
+    WHEN a POST request to /comments is made
+    THEN the HTTP status code should be 200
+    """
+    # pass the token in the headers of the HTTP request
+    headers = {
+        'content-type': "application/json",
+        'Authorization': login['token']
+    }
+    response = client.post("/comments", json=comment_json, headers=headers)
+    assert response.status_code == 200
+
+
+# ITEM ROUTES
 def test_get_items_status_code(client):
     """
     GIVEN a Flask test client
@@ -64,20 +116,3 @@ def test_post_item(client):
     )
     # 201 is the HTTP status code for a successful POST or PUT request
     assert response.status_code == 201
-
-
-def test_comment(client, login, comment_json):
-    """
-    GIVEN a registered user that is successfully logged in
-    AND a route that is protected by login
-    AND a new Comment that can be posted
-    WHEN a POST request to /comments is made
-    THEN the HTTP status code should be 200
-    """
-    # pass the token in the headers of the HTTP request
-    headers = {
-        'content-type': "application/json",
-        'Authorization': login['token']
-    }
-    response = client.post("/comments", json=comment_json, headers=headers)
-    assert response.status_code == 200

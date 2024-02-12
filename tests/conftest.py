@@ -1,4 +1,6 @@
 import os
+import string
+import secrets
 from pathlib import Path
 import datetime
 import pytest
@@ -9,7 +11,7 @@ from src.models import Account
 from src.helpers import decode_auth_token
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def app():
     """Fixture that creates a test app.
 
@@ -49,6 +51,19 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture()
+def random_user_json():
+    """Generates a account with random attributes for testing and returns as JSON."""
+    fake = Faker()
+    # Generate an eight-character alphanumeric password
+    alphabet = string.ascii_letters + string.digits
+    return {'username': fake.user_name(),
+            'first_name': fake.first_name(),
+            'last_name': fake.last_name(),
+            'email': fake.email(),
+            'password': ''.join(secrets.choice(alphabet) for i in range(8))}
+
+
 @pytest.fixture(scope='session')
 def new_user(app):
     """Create a new user and add to the database.
@@ -58,17 +73,16 @@ def new_user(app):
     The scope is session as we need the user to be there throughout for testing the logged in functions.
 
     """
-    fake = Faker()
     user_json = {
-        "username": fake.user_name(),
-        "password": fake.password()
+        "username": "test",
+        "password": "abcdefgh"
     }
 
     with app.app_context():
         user = Account(username=user_json["username"],
-                       first_name=fake.first_name(),
-                       last_name=fake.last_name(),
-                       email=fake.email())
+                       first_name="test",
+                       last_name="test",
+                       email="test@gmail.com")
         user.set_password(user_json["password"])
         db.session.add(user)
         db.session.commit()
@@ -84,7 +98,7 @@ def new_user(app):
 
 
 @pytest.fixture()
-def login(client, new_user):
+def login(client, new_user, app):
     """Returns login response"""
     # Login
     # If login fails then the fixture fails. It may be possible to 'mock' this instead if you want to investigate it.
@@ -94,8 +108,9 @@ def login(client, new_user):
 
 
 @pytest.fixture()
-def comment_json(login):
+def comment_json(login, app):
     """Returns comment data"""
-    yield {'date': datetime.datetime.now(datetime.UTC),
-           'content': Faker().paragraph(),
-           'user_id': decode_auth_token(login['token'])}
+    with app.app_context():
+        yield {'date': datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S"),
+               'content': Faker().paragraph(),
+               'user_id': decode_auth_token(login['token'])["sub"]}

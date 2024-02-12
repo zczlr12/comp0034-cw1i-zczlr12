@@ -10,6 +10,7 @@ from src.helpers import token_required, encode_auth_token
 
 # Flask-Marshmallow Schemas
 comments_schema = CommentSchema(many=True)
+comment_schema = CommentSchema()
 items_schema = ItemSchema(many=True)
 item_schema = ItemSchema()
 detail_schema = DetailSchema()
@@ -170,8 +171,18 @@ def get_comments():
     :returns: JSON
     """
     # Select all the comments using Flask-SQLAlchemy
-    all_comments = db.session.execute(db.select(Comment)).scalars()
-    return comments_schema.dump(all_comments)
+    try:
+        all_comments = db.session.execute(db.select(Comment)).scalars()
+        try:
+            return comments_schema.dump(all_comments)
+        except ValidationError as e:
+            app.logger.error(f"A Marshmallow ValidationError occurred dumping all comments: {str(e)}")
+            msg = {'message': "An Internal Server Error occurred."}
+            return make_response(msg, 500)
+    except SQLAlchemyError as e:
+        app.logger.error(f"An error occurred while fetching comments: {str(e)}")
+        msg = {'message': "An Internal Server Error occurred."}
+        return make_response(msg, 500)
 
 
 @app.post('/comments')
@@ -184,10 +195,22 @@ def post_comment():
 
     :returns: JSON"""
     comment_json = request.get_json()
-    comment = CommentSchema.load(comment_json)
-    db.session.add(comment)
-    db.session.commit()
-    return {"message": f"Comment added with id= {comment.comment_id}"}
+    try:
+        comment = comment_schema.load(comment_json)
+
+        try:
+            db.session.add(comment)
+            db.session.commit()
+            return {"message": f"Comment added with id= {comment.comment_id}"}
+        except SQLAlchemyError as e:
+            app.logger.error(f"An error occurred saving the comment: {str(e)}")
+            msg = {'message': "An Internal Server Error occurred."}
+            return make_response(msg, 500)
+    
+    except ValidationError as e:
+        app.logger.error(f"A Marshmallow ValidationError loading the comment: {str(e)}")
+        msg = {'message': "The Region details failed validation."}
+        return make_response(msg, 400)
 
 
 # ITEM ROUTES
@@ -197,9 +220,19 @@ def get_items():
 
     :returns: JSON
     """
-    # Select all the regions using Flask-SQLAlchemy
-    all_items = db.session.execute(db.select(Item)).scalars()
-    return items_schema.dump(all_items)
+    try:
+        # Select all the items using Flask-SQLAlchemy
+        all_items = db.session.execute(db.select(Item)).scalars()
+        try:
+            return items_schema.dump(all_items)
+        except ValidationError as e:
+            app.logger.error(f"A Marshmallow ValidationError occurred dumping all items: {str(e)}")
+            msg = {'message': "An Internal Server Error occurred."}
+            return make_response(msg, 500)
+    except SQLAlchemyError as e:
+        app.logger.error(f"An error occurred while fetching items: {str(e)}")
+        msg = {'message': "An Internal Server Error occurred."}
+        return make_response(msg, 500)
 
 
 @app.get("/items/<int:item_id>")
@@ -230,10 +263,22 @@ def add_item():
 
     :returns: JSON"""
     item_json = request.get_json()
-    item = item_schema.load(item_json)
-    db.session.add(item)
-    db.session.commit()
-    return {"message": f"Item added with id= {item.item_id}"}
+    try:
+        item = item_schema.load(item_json)
+
+        try:
+            db.session.add(item)
+            db.session.commit()
+            return {"message": f"Item added with id= {item.item_id}"}
+        except SQLAlchemyError as e:
+            app.logger.error(f"An error occurred saving the item: {str(e)}")
+            msg = {'message': "An Internal Server Error occurred."}
+            return make_response(msg, 500)
+        
+    except ValidationError as e:
+        app.logger.error(f"A Marshmallow ValidationError loading the item: {str(e)}")
+        msg = {'message': "The Region details failed validation."}
+        return make_response(msg, 400)
 
 
 @app.delete('/items/<int:item_id>')
@@ -267,22 +312,31 @@ def data_update(item_id):
     """Updates changed fields for the item.
 
     """
-    # Find the event in the database
-    existing_item = db.session.execute(
-        db.select(Item).filter_by(item_id=item_id)
-    ).scalar_one_or_none()
+    app.logger.error(f"Started the patch")
+    try:
+        # Find the item in the database
+        existing_item = db.session.execute(
+            db.select(Item).filter_by(item_id=item_id)
+        ).scalar_one_or_none()
+    except SQLAlchemyError as e:
+        app.logger.error(f"The item with id {item_id} does not exist. Error: {str(e)}")
+        return abort(404, description="Item not found.")
     # Get the updated details from the json sent in the HTTP patch request
     item_json = request.get_json()
+    app.logger.error(f"item_json: {str(item_json)}")
     # Use Marshmallow to update the existing records with the changes from the json
-    data_updated = detail_schema.load(item_json, instance=existing_item, partial=True)
+    try:
+        data_updated = detail_schema.load(item_json, instance=existing_item, partial=True)
+    except ValidationError as e:
+        app.logger.error(f"A Marshmallow schema validation error occurred: {str(e)}")
+        msg = f'Failed Marshmallow schema validation'
+        return make_response(msg, 500)
     # Commit the changes to the database
-    db.session.add(data_updated)
-    db.session.commit()
-    # Return json showing the updated record
-    updated_data = db.session.execute(
-        db.select(Item).filter_by(item_id=item_id)
-    ).scalar_one_or_none()
-    result = detail_schema.jsonify(updated_data)
-    response = make_response(result, 200)
-    response.headers["Content-Type"] = "application/json"
-    return response
+    try:
+        db.session.add(data_updated)
+        db.session.commit()
+        return {"message": f"Item with id {item_id} updated."}
+    except SQLAlchemyError as e:
+        app.logger.error(f"A SQLAlchemy database error occurred: {str(e)}")
+        msg = f'An Internal Server Error occurred.'
+        return make_response(msg, 500)
