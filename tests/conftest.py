@@ -21,6 +21,9 @@ def app():
     Returns:
         app A Flask app with a test config
     """
+    # Adapted from https://flask.palletsprojects.com/en/2.3.x/tutorial/tests/#id2
+    # Accessed 05/02/2023
+
     # Location for the temporary testing database
     db_path = Path(__file__).parent.parent.joinpath('data', 'testdb.sqlite')
     test_cfg = {
@@ -100,8 +103,6 @@ def new_user(app):
 @pytest.fixture()
 def login(client, new_user):
     """Returns login response"""
-    # Login
-    # If login fails then the fixture fails. It may be possible to 'mock' this instead if you want to investigate it.
     response = client.post('/login', json=new_user, content_type="application/json")
     # Get returned json data from the login function
     yield response.json
